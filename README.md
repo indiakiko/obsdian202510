@@ -29,11 +29,12 @@
 obsdian202510/
 ├── .claude/
 │   └── instructions.md          # AIへのカスタム指示書
-├── books/                        # 読書データ（自動生成）
-│   └── [本のタイトル]/
-│       ├── logs.md              # 対話ログ
-│       ├── reading-note.md      # 読書ノート
-│       └── metadata.json        # メタデータ
+├── 30_Knowledge/
+│   └── 20_Books/                # 読書データ（自動生成）
+│       └── [本のタイトル]/
+│           ├── logs.md          # 対話ログ
+│           ├── reading-note.md  # 読書ノート
+│           └── metadata.json    # メタデータ
 ├── docs/
 │   ├── obsidian-sync-setup-guide.md  # Obsidian双方向同期ガイド
 │   └── README.md
@@ -51,26 +52,26 @@ obsdian202510/
 
 ```
 [Mac: ローカルObsidianフォルダ]
-    ⇄ rclone bisync（5分おき自動）
-[Google Drive: /obsidian-sync]
+    ⇄ rsync 双方向（30分おき自動）
+[Google Drive: ~/Library/CloudStorage/.../obsdian-sync]
     ⇄ Google Driveアプリ（自動）
 [Android: Obsidian]
 ```
 
-- **Mac側**: rclone bisyncで双方向同期
+- **Mac側**: rsyncで双方向同期（30分おき）
 - **スマホ側**: Google Driveアプリ経由で自動同期
 - **どちらで編集してもOK**: 変更は自動的に反映されます
+- **同期対象**: 7つの主要フォルダ（30_Knowledgeに読書ノートを含む）
 
 ### セットアップ
 
 詳しい手順は [`docs/obsidian-sync-setup-guide.md`](docs/obsidian-sync-setup-guide.md) を参照してください。
 
 **簡単な流れ**:
-1. rcloneをインストール (`brew install rclone`)
-2. Google Driveに接続設定
-3. 初回同期 (`--resync`)
-4. 自動同期スクリプトを設定
-5. launchdで自動化
+1. 既存の一方通行同期を停止
+2. 新しい双方向同期スクリプトに実行権限を付与
+3. 手動で動作テスト
+4. launchdで自動化
 
 これにより、Mac/スマホのどちらでも読書ノートを編集でき、常に最新の状態が保たれます。
 
@@ -154,7 +155,7 @@ AIが対話ログを分析して、構造化された読書ノートを自動生
 | `[本のタイトル]に切り替え` | 別の本に切り替え |
 | `読書ノートを作って` | 読書ノートを生成 |
 | `ここまでの読書ログを見せて` | logs.md の内容を表示 |
-| `読んでいる本のリストを見せて` | books/ 内の本を一覧表示 |
+| `読んでいる本のリストを見せて` | 30_Knowledge/20_Books/ 内の本を一覧表示 |
 
 ## 🎯 こんな人におすすめ
 

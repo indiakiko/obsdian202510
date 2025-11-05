@@ -4,9 +4,12 @@
 # rclone bisyncを使用してMacローカルフォルダとGoogle Driveを同期
 
 # 設定
-LOCAL_PATH="/Users/akiyamaakiko/Documents/obsdian202510"
-REMOTE_PATH="gdrive:/obsidian-sync"
-LOG_FILE="$HOME/Library/Logs/obsidian-sync.log"
+LOCAL_BASE="/Users/akiyamaakiko/Documents/obsdian202510"
+REMOTE_BASE="$HOME/Library/CloudStorage/GoogleDrive-indiakiko@gmail.com/マイドライブ/obsdian-sync"
+LOG_FILE="$LOCAL_BASE/sync_log.txt"
+
+# 同期対象フォルダ（既存の設定と同じ）
+FOLDERS=("01_Inbox" "02_Daily" "03_Todo" "04_Templates" "20_Projects" "30_Knowledge" "ニュース")
 
 # ログ関数
 log() {
@@ -20,38 +23,57 @@ error_exit() {
 }
 
 # ログ開始
-log "========== Sync Started =========="
+log "========================================"
+log "同期開始: $(date)"
 
-# rcloneがインストールされているか確認
-if ! command -v rclone &> /dev/null; then
-    error_exit "rclone is not installed. Please install it first: brew install rclone"
+# rsyncがインストールされているか確認
+if ! command -v rsync &> /dev/null; then
+    error_exit "rsync is not installed"
 fi
 
 # ローカルパスが存在するか確認
-if [ ! -d "$LOCAL_PATH" ]; then
-    error_exit "Local path does not exist: $LOCAL_PATH"
+if [ ! -d "$LOCAL_BASE" ]; then
+    error_exit "Local path does not exist: $LOCAL_BASE"
 fi
 
-# bisync実行
-log "Running rclone bisync..."
-rclone bisync "$LOCAL_PATH" "$REMOTE_PATH" \
-    --verbose \
-    --log-file="$LOG_FILE" \
-    --log-level INFO \
-    --exclude ".DS_Store" \
-    --exclude ".git/**" \
-    --exclude "node_modules/**" \
-    --exclude ".obsidian/workspace*" \
-    2>&1 | tee -a "$LOG_FILE"
-
-# 実行結果を確認
-if [ $? -eq 0 ]; then
-    log "Sync completed successfully"
-else
-    log "Sync failed with exit code: $?"
+# リモートパスが存在するか確認
+if [ ! -d "$REMOTE_BASE" ]; then
+    error_exit "Remote path does not exist: $REMOTE_BASE"
 fi
 
-log "========== Sync Finished =========="
+# 各フォルダを双方向同期
+for folder in "${FOLDERS[@]}"; do
+  LOCAL_FOLDER="$LOCAL_BASE/$folder"
+  REMOTE_FOLDER="$REMOTE_BASE/$folder"
+
+  if [ -d "$LOCAL_FOLDER" ]; then
+    log "Transfer starting: $folder"
+
+    # Mac → Google Drive (変更されたファイルのみ)
+    rsync -av --delete \
+      --exclude='.DS_Store' \
+      --exclude='.obsidian/workspace*' \
+      --exclude='.obsidian/cache' \
+      "$LOCAL_FOLDER/" "$REMOTE_FOLDER/" >> "$LOG_FILE" 2>&1
+
+    # Google Drive → Mac (変更されたファイルのみ)
+    rsync -av \
+      --exclude='.DS_Store' \
+      --exclude='.obsidian/workspace*' \
+      --exclude='.obsidian/cache' \
+      "$REMOTE_FOLDER/" "$LOCAL_FOLDER/" >> "$LOG_FILE" 2>&1
+
+    if [ $? -eq 0 ]; then
+      log "Sync completed for: $folder"
+    else
+      log "Sync failed for: $folder (exit code: $?)"
+    fi
+  else
+    log "Folder not found, skipping: $folder"
+  fi
+done
+
+log "同期完了: $(date)"
 echo "" >> "$LOG_FILE"
 
 exit 0

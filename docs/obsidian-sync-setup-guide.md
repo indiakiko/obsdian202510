@@ -8,34 +8,29 @@ MacのローカルObsidianフォルダとGoogle Driveを双方向自動同期し
 
 ```
 [Mac: /Users/akiyamaakiko/Documents/obsdian202510]
-    ↓ 一方通行（30分おき自動）
-[Google Drive: /obsidian-sync]
+    ↓ 一方通行（30分おき・rsync）
+[Google Drive: ~/Library/CloudStorage/.../obsdian-sync]
     ↓ 自動同期
 [Android: Obsidian]
 ```
+
+**問題点**: Mac → Google Driveの一方通行なので、スマホで編集してもMacに反映されない
 
 ## 目標の構成
 
 ```
 [Mac: /Users/akiyamaakiko/Documents/obsdian202510]
-    ⇄ rclone bisync（双方向・自動）
-[Google Drive: /obsidian-sync]
+    ⇄ rsync 双方向（30分おき・自動）
+[Google Drive: ~/Library/CloudStorage/.../obsdian-sync]
     ⇄ Google Driveアプリ（自動）
 [Android: Obsidian]
 ```
 
+**改善**: 双方向同期なので、Mac/スマホどちらで編集しても相互に反映される
+
 ---
 
 ## ⚠️ 重要な注意事項
-
-### 既存の同期との競合について
-
-現在、Mac → Google Driveへの一方通行の自動同期（30分おき）が動いているとのこと。
-**rclone bisyncを導入する前に、この既存の同期を停止する必要があります。**
-
-理由：
-- 2つの同期ツールが同時に動くと、ファイルの競合やデータ損失のリスクがある
-- rclone bisyncが双方向同期を担うので、一方通行の同期は不要になる
 
 ### バックアップの推奨
 
@@ -45,217 +40,153 @@ MacのローカルObsidianフォルダとGoogle Driveを双方向自動同期し
 # Macのローカルフォルダをバックアップ
 cp -r /Users/akiyamaakiko/Documents/obsdian202510 /Users/akiyamaakiko/Documents/obsdian202510_backup_$(date +%Y%m%d)
 
-# Google Driveもバックアップ（別の場所にコピー）
-# Google Drive Web UIで /obsidian-sync フォルダをコピー
+# Google Driveもバックアップ（Web UIで別フォルダにコピー）
 ```
 
 ---
 
 ## セットアップ手順
 
-### ステップ 1: 既存の同期ツールを特定・停止
+### ステップ 1: 既存の同期ジョブを停止
 
-**まず、現在動いている自動同期が何か確認してください。**
+現在 `com.obsidian.sync` が動いています。これを停止します。
 
-#### A) Google Drive for Desktop を使っている場合
-
-1. メニューバーの Google Drive アイコンをクリック
-2. 設定（歯車アイコン）→ 「環境設定」
-3. 現在の同期設定を確認
-4. **重要**: rclone導入後は、この同期を停止するか、`/obsidian-sync` フォルダを同期対象から除外する
-
-#### B) cronやlaunchdで自動同期している場合
-
-以下のコマンドで確認：
 ```bash
-# launchdのジョブを確認
-launchctl list | grep -i sync
-launchctl list | grep -i drive
-launchctl list | grep -i obsidian
-
-# cronジョブを確認
-crontab -l
+# 既存のジョブを停止＆解除
+launchctl stop com.obsidian.sync
+launchctl unload ~/Library/LaunchAgents/com.obsidian.sync.plist
 ```
 
-該当するものが見つかったら、メモしておいてください。
-
----
-
-### ステップ 2: Homebrewのインストール（未インストールの場合）
-
-ターミナルで確認：
+確認：
 ```bash
-brew --version
-```
-
-インストールされていない場合：
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+launchctl list | grep obsidian
+# 何も表示されなければOK
 ```
 
 ---
 
-### ステップ 3: Rcloneのインストール
+### ステップ 2: 新しい双方向同期スクリプトを配置
+
+このプロジェクトに含まれる新しいスクリプトを使います。
 
 ```bash
-brew install rclone
-```
-
-インストール確認：
-```bash
-rclone version
-```
-
----
-
-### ステップ 4: Rcloneの設定（Google Drive接続）
-
-```bash
-rclone config
-```
-
-以下の手順で設定：
-
-1. `n` (New remote)
-2. name: `gdrive` と入力
-3. Storage: `drive` と入力（Google Driveを選択）
-4. client_id: Enter（空のままでOK）
-5. client_secret: Enter（空のままでOK）
-6. scope: `1` (Full access)
-7. root_folder_id: Enter（空のままでOK）
-8. service_account_file: Enter（空のままでOK）
-9. Edit advanced config? `n`
-10. Use web browser to automatically authenticate? `y`
-11. ブラウザが開くので、Googleアカウントでログイン・認証
-12. 認証完了後、ターミナルに戻る
-13. Configure this as a Shared Drive? `n`
-14. `y` (Yes this is OK)
-15. `q` (Quit config)
-
-設定確認：
-```bash
-rclone listremotes
-# gdrive: と表示されればOK
-```
-
----
-
-### ステップ 5: Google Driveのフォルダ構造確認
-
-```bash
-rclone lsf gdrive:
-```
-
-`obsidian-sync/` が表示されることを確認。
-
----
-
-### ステップ 6: 初回同期（--resync）
-
-**⚠️ 重要**: 初回は必ず `--resync` オプションが必要です。
-
-**既存の同期ツールを停止してから実行してください！**
-
-```bash
-rclone bisync \
-  /Users/akiyamaakiko/Documents/obsdian202510 \
-  gdrive:/obsidian-sync \
-  --resync \
-  --verbose
-```
-
-- 数分かかる場合があります（ファイル数による）
-- エラーが出た場合は、メッセージを確認
-
----
-
-### ステップ 7: 手動で双方向同期をテスト
-
-```bash
-rclone bisync \
-  /Users/akiyamaakiko/Documents/obsdian202510 \
-  gdrive:/obsidian-sync \
-  --verbose
-```
-
-**テスト方法**:
-1. Macのローカルフォルダに新しいファイルを作成
-2. 上記コマンドを実行
-3. Google Drive Webで確認 → ファイルがアップロードされているか
-4. Google Drive Webで別のファイルを作成
-5. 再度上記コマンドを実行
-6. Macのローカルフォルダに反映されているか確認
-
----
-
-### ステップ 8: 自動同期スクリプトの作成
-
-このプロジェクトの `scripts/obsidian-sync.sh` を使用します。
-
-```bash
+# 実行権限を付与
 chmod +x /Users/akiyamaakiko/Documents/obsdian202510/scripts/obsidian-sync.sh
 ```
 
-手動で実行してテスト：
+---
+
+### ステップ 3: 手動で双方向同期をテスト
+
+**重要**: まず手動で実行して、正常に動作するか確認します。
+
 ```bash
+# スクリプトを手動実行
 /Users/akiyamaakiko/Documents/obsdian202510/scripts/obsidian-sync.sh
 ```
 
-ログを確認：
+**テスト方法**:
+
+1. **Mac → Google Drive の確認**
+   - Macのローカルフォルダに新しいファイルを作成（例: `30_Knowledge/test.md`）
+   - スクリプトを実行
+   - Google Drive Web UIで確認 → ファイルがアップロードされているか
+
+2. **Google Drive → Mac の確認**
+   - Google Drive Web UIで別のファイルを作成（例: `30_Knowledge/test2.md`）
+   - スクリプトを実行
+   - Macのローカルフォルダに反映されているか確認
+
+3. **ログの確認**
+   ```bash
+   cat /Users/akiyamaakiko/Documents/obsdian202510/sync_log.txt
+   ```
+
+正常に動作していれば、次のステップへ。
+
+---
+
+### ステップ 4: 新しい自動同期ジョブを登録
+
 ```bash
-tail -f ~/Library/Logs/obsidian-sync.log
+# plistファイルをLaunchAgentsディレクトリにコピー
+cp /Users/akiyamaakiko/Documents/obsdian202510/scripts/com.user.obsidian-sync.plist \
+   ~/Library/LaunchAgents/com.user.obsidian-bisync.plist
+
+# launchdに登録
+launchctl load ~/Library/LaunchAgents/com.user.obsidian-bisync.plist
+```
+
+確認：
+```bash
+launchctl list | grep obsidian
+# com.user.obsidian-bisync が表示されればOK
 ```
 
 ---
 
-### ステップ 9: launchdで自動化（5分おき）
+### ステップ 5: 自動同期の動作確認
 
-このプロジェクトの `scripts/com.user.obsidian-sync.plist` を使用します。
+```bash
+# 即座に実行してテスト
+launchctl start com.user.obsidian-bisync
 
-1. **plistファイルをlaunchdディレクトリにコピー**:
-   ```bash
-   cp /Users/akiyamaakiko/Documents/obsdian202510/scripts/com.user.obsidian-sync.plist \
-      ~/Library/LaunchAgents/
-   ```
+# ログを確認
+tail -f /Users/akiyamaakiko/Documents/obsdian202510/sync_log.txt
+```
 
-2. **launchdに登録**:
-   ```bash
-   launchctl load ~/Library/LaunchAgents/com.user.obsidian-sync.plist
-   ```
-
-3. **即座に実行してテスト**:
-   ```bash
-   launchctl start com.user.obsidian-sync
-   ```
-
-4. **ログを確認**:
-   ```bash
-   tail -f ~/Library/Logs/obsidian-sync.log
-   ```
-
-5. **ステータス確認**:
-   ```bash
-   launchctl list | grep obsidian-sync
-   ```
+30分後に自動実行されるので、しばらく待ってログを確認してください。
 
 ---
 
-### ステップ 10: 既存の一方通行同期を停止
+### ステップ 6: 既存のplistファイルを削除（任意）
 
-rcloneの双方向同期が正常に動作することを確認したら、既存の同期を停止してください。
+新しい同期が正常に動作することを確認したら、古いplistファイルを削除できます。
 
-#### Google Drive for Desktopの場合
-- `/obsidian-sync` フォルダを同期対象から除外
-
-#### cronやlaunchdの場合
 ```bash
-# launchdの場合
-launchctl unload ~/Library/LaunchAgents/[該当のplistファイル]
-
-# cronの場合
-crontab -e
-# 該当行を削除または無効化
+# バックアップを取ってから削除
+mv ~/Library/LaunchAgents/com.obsidian.sync.plist ~/Library/LaunchAgents/com.obsidian.sync.plist.bak
 ```
+
+---
+
+## 同期の仕組み
+
+### 対象フォルダ
+
+以下の7つのフォルダが同期されます：
+- `01_Inbox`
+- `02_Daily`
+- `03_Todo`
+- `04_Templates`
+- `20_Projects`
+- `30_Knowledge` ← **読書ノート（20_Books）もここに含まれる**
+- `ニュース`
+
+### 除外設定
+
+以下のファイルは同期から除外されます：
+- `.DS_Store`
+- `.obsidian/workspace*`
+- `.obsidian/cache`
+
+### 双方向同期の流れ
+
+スクリプトは以下の順序で実行されます：
+
+1. **Mac → Google Drive**:
+   - Macで変更されたファイルをGoogle Driveにアップロード
+   - `--delete` オプションで、Mac側で削除されたファイルはGoogle Driveからも削除
+
+2. **Google Drive → Mac**:
+   - Google Driveで変更されたファイルをMacにダウンロード
+   - 削除されたファイルはそのまま（`--delete` なし）
+
+### 競合の扱い
+
+- rsyncは「新しいファイル」を優先します
+- 同時に両方で編集すると、後に実行された方が残ります
+- **推奨**: 同時編集を避ける（Mac or スマホのどちらか一方で編集）
 
 ---
 
@@ -265,34 +196,54 @@ crontab -e
 
 ```bash
 # ログを確認
-tail -50 ~/Library/Logs/obsidian-sync.log
+tail -50 /Users/akiyamaakiko/Documents/obsdian202510/sync_log.txt
 
 # launchdのステータス確認
-launchctl list | grep obsidian-sync
+launchctl list | grep obsidian
 
 # 手動実行でエラー確認
-rclone bisync /Users/akiyamaakiko/Documents/obsdian202510 gdrive:/obsidian-sync --verbose
+/Users/akiyamaakiko/Documents/obsdian202510/scripts/obsidian-sync.sh
 ```
 
-### ファイルの競合が発生した場合
+### Google Driveのパスが見つからない
 
-rclone bisyncは競合を自動で解決せず、エラーを出します。
-
-**対処法**:
-1. エラーメッセージで競合ファイルを確認
-2. 手動でどちらを残すか決定
-3. `--resync` で再同期
+Google Drive for Desktopがインストールされていることを確認：
+```bash
+ls ~/Library/CloudStorage/
+# GoogleDrive-indiakiko@gmail.com が存在するか確認
+```
 
 ### 同期を一時停止したい
 
 ```bash
-launchctl stop com.user.obsidian-sync
+launchctl stop com.user.obsidian-bisync
 ```
 
 再開：
 ```bash
-launchctl start com.user.obsidian-sync
+launchctl start com.user.obsidian-bisync
 ```
+
+完全に無効化：
+```bash
+launchctl unload ~/Library/LaunchAgents/com.user.obsidian-bisync.plist
+```
+
+再度有効化：
+```bash
+launchctl load ~/Library/LaunchAgents/com.user.obsidian-bisync.plist
+```
+
+---
+
+## スマホ（Android）側の設定
+
+Androidのスマホでは、Obsidianアプリが既にGoogle Driveの `/obsdian-sync` フォルダを参照しているはずです。
+
+確認事項：
+1. Obsidianアプリで正しいVaultが開いているか
+2. Google Driveアプリで同期が有効になっているか
+3. 十分なストレージ容量があるか
 
 ---
 
@@ -301,29 +252,63 @@ launchctl start com.user.obsidian-sync
 ### 同期ログの確認
 
 ```bash
-tail -f ~/Library/Logs/obsidian-sync.log
+# リアルタイムでログを表示
+tail -f /Users/akiyamaakiko/Documents/obsdian202510/sync_log.txt
+
+# 最新50行を表示
+tail -50 /Users/akiyamaakiko/Documents/obsdian202510/sync_log.txt
 ```
 
-### 同期の完全リセット
+### ログファイルのクリーンアップ
+
+ログが大きくなりすぎた場合：
+```bash
+# ログを保存してクリア
+mv /Users/akiyamaakiko/Documents/obsdian202510/sync_log.txt \
+   /Users/akiyamaakiko/Documents/obsdian202510/sync_log_$(date +%Y%m%d).txt
+touch /Users/akiyamaakiko/Documents/obsdian202510/sync_log.txt
+```
+
+---
+
+## よくある質問
+
+### Q: 30分おきだと遅い。もっと頻繁に同期したい
+
+plistファイルの `StartInterval` を変更してください：
 
 ```bash
-# 自動同期を停止
-launchctl unload ~/Library/LaunchAgents/com.user.obsidian-sync.plist
+# plistを編集
+nano ~/Library/LaunchAgents/com.user.obsidian-bisync.plist
 
-# .rclone-bisync ディレクトリを削除
-rm -rf /Users/akiyamaakiko/Documents/obsdian202510/.rclone-bisync
+# <integer>1800</integer> を変更
+# 例: 5分おき → <integer>300</integer>
 
-# 再度 --resync から実行
-rclone bisync /Users/akiyamaakiko/Documents/obsdian202510 gdrive:/obsidian-sync --resync
+# 再読み込み
+launchctl unload ~/Library/LaunchAgents/com.user.obsidian-bisync.plist
+launchctl load ~/Library/LaunchAgents/com.user.obsidian-bisync.plist
 ```
+
+### Q: 読書ノートだけ同期したい
+
+スクリプトの `FOLDERS` 配列を編集：
+
+```bash
+nano /Users/akiyamaakiko/Documents/obsdian202510/scripts/obsidian-sync.sh
+
+# FOLDERS=("30_Knowledge") だけにする
+```
+
+### Q: rclone bisyncに変更したい
+
+rclone bisyncの方が高度な双方向同期が可能です。興味があれば別途設定できます。
 
 ---
 
 ## 参考情報
 
-- [Rclone公式ドキュメント](https://rclone.org/)
-- [Rclone bisync](https://rclone.org/bisync/)
 - このプロジェクトのREADME.md
+- [rsync公式マニュアル](https://download.samba.org/pub/rsync/rsync.html)
 
 ---
 
