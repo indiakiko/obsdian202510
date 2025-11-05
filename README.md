@@ -35,9 +35,44 @@ obsdian202510/
 │       ├── reading-note.md      # 読書ノート
 │       └── metadata.json        # メタデータ
 ├── docs/
+│   ├── obsidian-sync-setup-guide.md  # Obsidian双方向同期ガイド
 │   └── README.md
+├── scripts/
+│   ├── obsidian-sync.sh         # 自動同期スクリプト
+│   └── com.user.obsidian-sync.plist  # launchd設定
 └── README.md                     # このファイル
 ```
+
+## 🔄 Mac ⇄ スマホ 双方向同期
+
+このプロジェクトは、Obsidianを使ってMacとAndroidスマホの間で双方向同期します。
+
+### 同期の仕組み
+
+```
+[Mac: ローカルObsidianフォルダ]
+    ⇄ rclone bisync（5分おき自動）
+[Google Drive: /obsidian-sync]
+    ⇄ Google Driveアプリ（自動）
+[Android: Obsidian]
+```
+
+- **Mac側**: rclone bisyncで双方向同期
+- **スマホ側**: Google Driveアプリ経由で自動同期
+- **どちらで編集してもOK**: 変更は自動的に反映されます
+
+### セットアップ
+
+詳しい手順は [`docs/obsidian-sync-setup-guide.md`](docs/obsidian-sync-setup-guide.md) を参照してください。
+
+**簡単な流れ**:
+1. rcloneをインストール (`brew install rclone`)
+2. Google Driveに接続設定
+3. 初回同期 (`--resync`)
+4. 自動同期スクリプトを設定
+5. launchdで自動化
+
+これにより、Mac/スマホのどちらでも読書ノートを編集でき、常に最新の状態が保たれます。
 
 ## 🚀 使い方
 
