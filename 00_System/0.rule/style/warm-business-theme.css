@@ -1,0 +1,229 @@
+/*
+ * Warm Business Theme for Marp
+ * 温かみのあるビジネステーマ
+ *
+ * 特徴：
+ * - 16:9 アスペクト比
+ * - 最小フォントサイズ 26pt
+ * - 温かみのある配色
+ */
+
+/* テーマ設定 */
+@theme warm-business
+
+/* カラー定義 */
+:root {
+  --color-background: #faf8f3;      /* 温かみのあるベージュ */
+  --color-foreground: #424242;      /* 濃いグレー */
+  --color-heading: #6d4c41;         /* 茶色 */
+  --color-accent: #f57c00;          /* オレンジ */
+  --color-accent-dark: #d84315;     /* 深いオレンジ */
+  --color-subtle: #8d6e63;          /* 薄い茶色 */
+}
+
+/* 基本スライド設定 */
+section {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: 'Meiryo', 'メイリオ', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 28pt;
+  line-height: 1.6;
+  padding: 60px 80px;
+  width: 1920px;
+  height: 1080px;
+}
+
+/* 見出し設定 */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-heading);
+  font-weight: 600;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 56pt;
+  border-bottom: 4px solid var(--color-accent);
+  padding-bottom: 0.3em;
+  margin-bottom: 0.8em;
+}
+
+h2 {
+  font-size: 42pt;
+  margin-top: 0.8em;
+}
+
+h3 {
+  font-size: 36pt;
+  color: var(--color-accent);
+}
+
+/* 本文設定 */
+p {
+  font-size: 28pt;
+  margin: 0.8em 0;
+}
+
+/* 箇条書き設定 */
+ul, ol {
+  font-size: 28pt;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+li {
+  margin: 0.6em 0;
+  line-height: 1.5;
+}
+
+/* ネストされた箇条書き */
+li > ul, li > ol {
+  font-size: 26pt;
+  margin-top: 0.3em;
+}
+
+/* 箇条書きマーカー */
+ul > li::marker {
+  color: var(--color-accent);
+  font-size: 1.2em;
+}
+
+/* 強調 */
+strong, b {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+em, i {
+  color: var(--color-accent-dark);
+  font-style: italic;
+}
+
+/* リンク */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 2px solid var(--color-accent);
+}
+
+a:hover {
+  color: var(--color-accent-dark);
+  border-bottom-color: var(--color-accent-dark);
+}
+
+/* コード */
+code {
+  background-color: #f5f5dc;
+  color: var(--color-heading);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 24pt;
+  font-family: 'Courier New', monospace;
+}
+
+/* 表 */
+table {
+  font-size: 24pt;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+th {
+  background-color: var(--color-heading);
+  color: var(--color-background);
+  padding: 0.6em 1em;
+  font-weight: 600;
+}
+
+td {
+  padding: 0.6em 1em;
+  border-bottom: 1px solid var(--color-subtle);
+}
+
+tr:hover {
+  background-color: #f5f5dc;
+}
+
+/* 引用 */
+blockquote {
+  border-left: 6px solid var(--color-accent);
+  padding-left: 1.5em;
+  margin: 1em 0;
+  font-style: italic;
+  color: var(--color-subtle);
+}
+
+/* 水平線 */
+hr {
+  border: none;
+  border-top: 3px solid var(--color-accent);
+  margin: 1.5em 0;
+}
+
+/* タイトルスライド用 */
+section.title {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+section.title h1 {
+  font-size: 64pt;
+  border-bottom: none;
+  margin-bottom: 0.5em;
+}
+
+section.title p {
+  font-size: 32pt;
+  color: var(--color-subtle);
+}
+
+/* ページ番号 */
+section::after {
+  content: attr(data-marpit-pagination) ' / ' attr(data-marpit-pagination-total);
+  position: absolute;
+  bottom: 30px;
+  right: 50px;
+  font-size: 20pt;
+  color: var(--color-subtle);
+}
+
+/* タイトルスライドではページ番号を非表示 */
+section.title::after {
+  content: '';
+}
+
+/* 2カラムレイアウト用 */
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+.columns > div {
+  padding: 20px;
+}
+
+/* 画像 */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* アラート/注意ボックス */
+.alert {
+  background-color: #fff3e0;
+  border-left: 6px solid var(--color-accent);
+  padding: 1em 1.5em;
+  margin: 1em 0;
+  border-radius: 4px;
+}
+
+.alert strong {
+  color: var(--color-accent-dark);
+}
